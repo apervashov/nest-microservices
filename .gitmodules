@@ -1,0 +1,12 @@
+[submodule "contracts"]
+	path = contracts
+	url = https://github.com/apcinemaorg/contracts.git
+[submodule "core"]
+	path = core
+	url = https://github.com/apcinemaorg/core.git
+[submodule "auth-service"]
+	path = auth-service
+	url = https://github.com/apcinemaorg/auth-service.git
+[submodule "gateway-service"]
+	path = gateway-service
+	url = https://github.com/apcinemaorg/gateway-service.git
