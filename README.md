@@ -1,5 +1,17 @@
 # APCinema Backend
 
+<p align="center">
+  <a href="https://nestjs.com" title="NestJS"><img src="https://img.shields.io/badge/NestJS-E0234E?style=for-the-badge&logo=nestjs&logoColor=white" alt="NestJS" /></a>
+  <a href="https://www.typescriptlang.org" title="TypeScript"><img src="https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript" /></a>
+  <a href="https://grpc.io" title="gRPC"><img src="https://img.shields.io/badge/gRPC-244C5A?style=for-the-badge&logo=grpc&logoColor=white" alt="gRPC" /></a>
+  <a href="https://protobuf.dev" title="Protocol Buffers"><img src="https://img.shields.io/badge/Protobuf-4285F4?style=for-the-badge&logo=protobuf&logoColor=white" alt="Protocol Buffers" /></a>
+  <a href="https://www.postgresql.org" title="PostgreSQL"><img src="https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL" /></a>
+  <a href="https://redis.io" title="Redis"><img src="https://img.shields.io/badge/Redis-DC382D?style=for-the-badge&logo=redis&logoColor=white" alt="Redis" /></a>
+  <a href="https://www.prisma.io" title="Prisma"><img src="https://img.shields.io/badge/Prisma-2D3748?style=for-the-badge&logo=prisma&logoColor=white" alt="Prisma" /></a>
+  <a href="https://www.docker.com" title="Docker"><img src="https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker" /></a>
+  <a href="https://swagger.io" title="Swagger"><img src="https://img.shields.io/badge/Swagger-85EA2D?style=for-the-badge&logo=swagger&logoColor=black" alt="Swagger" /></a>
+</p>
+
 Backend for the APCinema cinema platform. Built as multiple NestJS services communicating over gRPC. Clients only talk to the **gateway** over HTTP; everything else is internal.
 
 ## What's inside
