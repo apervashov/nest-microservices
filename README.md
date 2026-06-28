@@ -67,12 +67,10 @@ git submodule update --init --recursive
 
 ### 2. Start infrastructure
 
-Create a `.env` file in the `docker` directory:
+Copy the example env file:
 
-```env
-POSTGRES_USER=apcinema
-POSTGRES_PASSWORD=apcinema
-REDIS_PASSWORD=apcinema
+```bash
+cp docker/.env.example docker/.env
 ```
 
 Start the containers:
@@ -94,23 +92,8 @@ cd auth-service
 npm install
 ```
 
-Create `auth-service/.env`:
-
-```env
-# Prisma CLI (migrations)
-DATABASE_URL=postgresql://apcinema:apcinema@localhost:5433/apcinema
-
-# Runtime (Prisma adapter)
-POSTGRES_USER=apcinema
-POSTGRES_PASSWORD=apcinema
-POSTGRES_HOST=localhost
-POSTGRES_PORT=5433
-POSTGRES_DB=apcinema
-
-REDIS_HOST=localhost
-REDIS_PORT=6379
-REDIS_USER=default
-REDIS_PASSWORD=apcinema
+```bash
+cp auth-service/.env.example auth-service/.env
 ```
 
 Apply the database schema:
@@ -134,18 +117,8 @@ cd gateway-service
 npm install
 ```
 
-Create `gateway-service/.env`:
-
-```env
-HTTP_HOST=http://localhost:3000
-HTTP_PORT=3000
-HTTP_CORS=http://localhost:3000,http://localhost:5173
-
-AUTH_GRPC_URL=localhost:50051
-
-SWAGGER_TITLE=APCinema API
-SWAGGER_DESCRIPTION=Backend API for APCinema platform
-SWAGGER_VERSION=1.0
+```bash
+cp gateway-service/.env.example gateway-service/.env
 ```
 
 Run:
