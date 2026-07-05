@@ -13,3 +13,6 @@
 [submodule "common"]
 	path = common
 	url = https://github.com/apcinemaorg/shared.git
+[submodule "notifiaction-service"]
+	path = notifiaction-service
+	url = https://github.com/apcinemaorg/notification-service.git
