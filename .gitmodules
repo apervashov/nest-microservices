@@ -16,3 +16,6 @@
 [submodule "notifiaction-service"]
 	path = notifiaction-service
 	url = https://github.com/apcinemaorg/notification-service.git
+[submodule "user-service"]
+	path = user-service
+	url = https://github.com/apcinemaorg/user-service.git

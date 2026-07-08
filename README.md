@@ -21,6 +21,7 @@ Backend for the APCinema cinema platform. Built as multiple NestJS services: syn
 |---|---|
 | **gateway-service** | HTTP API, Swagger, proxies requests to microservices via gRPC |
 | **auth-service** | Authentication: OTP via phone or email, accounts in PostgreSQL, codes in Redis, OTP events via RabbitMQ |
+| **user-service** | User profiles: settings, avatars, admin operations; sync via RabbitMQ `auth.account_created` |
 | **notifiaction-service** | Consumes async events from RabbitMQ (e.g. `auth.otp_requested`) for SMS/email delivery |
 | **contracts** | Protobuf contracts and generated TypeScript types (`@apcinema/contracts`) |
 | **common** | Shared utilities (`@apcinema/shared`) — gRPC → HTTP mapping, JWT helpers, etc. |
@@ -38,30 +39,49 @@ Client (web / mobile)
 │  REST + Swagger   │
 └─────────┬─────────┘
           │ gRPC
-          ▼
-┌───────────────────┐       ┌─────────────┐
-│   auth-service    │◄─────►│    Redis    │  OTP codes (5 min TTL)
-│   :50051          │       └─────────────┘
-└─────────┬─────────┘
+          ├──────────────────────┐
+          ▼                      ▼
+┌───────────────────┐   ┌───────────────────┐
+│   auth-service    │   │   user-service    │
+│   :50051          │   │   :50052          │
+└─────────┬─────────┘   └─────────┬─────────┘
+          │                       │
+          ├───────────┐           │
+          │           │           │
+          ▼           ▼           ▼
+   ┌─────────────┐ ┌─────────────┐ ┌─────────────┐
+   │ PostgreSQL  │ │    Redis    │ │ PostgreSQL  │
+   │  accounts   │ │  OTP codes  │ │    users    │
+   └─────────────┘ └─────────────┘ └─────────────┘
           │
+          │ RabbitMQ
           ├──────────────────────────────┐
-          │                              │ RabbitMQ
           ▼                              ▼
-   ┌─────────────┐              ┌─────────────────────┐
-   │ PostgreSQL  │              │ notifiaction-service │
-   │  accounts   │              │  auth.otp_requested  │
-   └─────────────┘              └─────────────────────┘
-                                         │
-                                         ▼
-                                  SMS / email (planned)
+   ┌─────────────────────┐      ┌─────────────────────┐
+   │ notifiaction-service│      │   user-service      │
+   │ auth.otp_requested  │      │ auth.account_created│
+   └─────────────────────┘      └─────────────────────┘
 ```
+
+When a user registers, **auth-service** creates an account and emits `auth.account_created` to the `users_queue`. **user-service** consumes the event and creates a profile linked by `accountId`.
 
 When a user requests an OTP, **auth-service** stores the hashed code in Redis, logs it in dev mode, and emits an `auth.otp_requested` event to the `notifications_queue`. **notifiaction-service** consumes that event and will handle actual delivery.
 
-Only one domain is implemented so far — **auth**:
+Implemented domains:
+
+**Auth** (`/auth/*`):
 
 - `POST /auth/otp/send` — send an OTP to a phone number or email
 - `POST /auth/otp/verify` — verify the code and receive tokens
+- `POST /auth/register`, `POST /auth/login`, `POST /auth/refresh`, `POST /auth/logout`
+- `GET /auth/me` — auth data only (phone, email, role, verification flags)
+
+**Users** (`/users/*`, `/admin/users/*`):
+
+- `GET /users/me`, `PATCH /users/me`, `POST /users/me/avatar`
+- `GET /users/:id`, `GET /users/by-username/:username` — public profiles
+- `GET /admin/users`, `GET /admin/users/:id` — admin only
+- `PATCH /admin/users/:id/block`, `PATCH /admin/users/:id/unblock`, `DELETE /admin/users/:id`
 
 API docs: `http://<host>/docs` (Swagger), OpenAPI YAML: `/openapi.yaml`.
 
@@ -152,7 +172,38 @@ Run:
 npm run start:dev
 ```
 
-### 5. Set up notifiaction-service
+### 5. Set up user-service
+
+```bash
+cd user-service
+npm install
+```
+
+```bash
+cp .env.example .env
+```
+
+Create the users database (if it does not exist):
+
+```bash
+docker exec -it docker-postgres-1 psql -U apcinema -c "CREATE DATABASE apcinema_users;"
+```
+
+Apply the database schema:
+
+```bash
+npx prisma db push
+```
+
+Run:
+
+```bash
+npm run start:dev
+```
+
+The service listens for gRPC on `localhost:50052` and HTTP (Swagger) on `localhost:3002`.
+
+### 6. Set up notifiaction-service
 
 ```bash
 cd notifiaction-service
@@ -174,7 +225,7 @@ npm run start:dev
 
 The service has no HTTP port — it only listens on the RabbitMQ queue.
 
-### 6. Verify
+### 7. Verify
 
 ```bash
 # health check
@@ -200,6 +251,7 @@ RabbitMQ management UI: [http://localhost:15672](http://localhost:15672) (creden
 | `HTTP_PORT` | HTTP server port |
 | `HTTP_CORS` | Allowed origins, comma-separated |
 | `AUTH_GRPC_URL` | auth-service address (`host:port`) |
+| `USER_GRPC_URL` | user-service address (`host:port`) |
 | `SWAGGER_TITLE` | Swagger page title |
 | `SWAGGER_DESCRIPTION` | API description in Swagger |
 | `SWAGGER_VERSION` | API version in Swagger |
@@ -213,8 +265,25 @@ RabbitMQ management UI: [http://localhost:15672](http://localhost:15672) (creden
 | `REDIS_*` | Redis connection settings |
 | `RMQ_URL` | RabbitMQ connection URL (default: `amqp://admin:123456@localhost:5672`) |
 | `RMQ_QUEUE_NAME` | Queue for notification events (default: `notifications_queue`) |
+| `RMQ_USERS_QUEUE_NAME` | Queue for user profile events (default: `users_queue`) |
 
 The auth-service gRPC port is hardcoded in `auth-service/src/main.ts` (`localhost:50051`). If you change it, update `AUTH_GRPC_URL` in the gateway as well.
+
+### user-service
+
+| Variable | Description |
+|---|---|
+| `DATABASE_URL` | Connection string for Prisma CLI |
+| `POSTGRES_*` | PostgreSQL connection settings at runtime (`POSTGRES_DB=apcinema_users`) |
+| `USER_GRPC_URL` | user-service gRPC address (`localhost:50052`) |
+| `HTTP_PORT` | HTTP/Swagger port (default: `3002`) |
+| `RMQ_URL` | RabbitMQ connection URL |
+| `RMQ_USERS_QUEUE_NAME` | Queue for `auth.account_created` events (default: `users_queue`) |
+| `AVATAR_STORAGE_PATH` | Local path for avatar files (default: `./uploads/avatars`) |
+| `AVATAR_PUBLIC_BASE_PATH` | Public URL prefix for avatars (default: `/avatars`) |
+| `AVATAR_MAX_SIZE_MB` | Max avatar upload size in MB (default: `5`) |
+
+The user-service gRPC URL is read from `USER_GRPC_URL`. Update gateway `USER_GRPC_URL` if you change the port.
 
 ### notifiaction-service
 
@@ -246,6 +315,7 @@ The gateway maps gRPC errors to a unified HTTP format via `GrpcExceptionFilter`.
 ```
 backend/
 ├── auth-service/           # gRPC authentication microservice
+├── user-service/           # gRPC user profile microservice
 ├── gateway-service/        # HTTP gateway
 ├── notifiaction-service/   # RabbitMQ consumer for notifications
 ├── contracts/              # proto + generated types
@@ -262,7 +332,7 @@ backend/
 
 ### Useful commands
 
-In each service (`auth-service`, `gateway-service`, `notifiaction-service`):
+In each service (`auth-service`, `user-service`, `gateway-service`, `notifiaction-service`):
 
 ```bash
 npm run start:dev    # hot-reload
